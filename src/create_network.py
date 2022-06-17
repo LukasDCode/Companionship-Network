@@ -2,55 +2,71 @@ import pandas as pd
 import networkx as nx
 from networkx.algorithms import bipartite
 
-def read_network(path_to_network):
+def read_network(path_to_network, verbose):
 
+    # Uppercase Letters for dataframe columns, lowercase letters for the network attributes
     df = pd.read_csv(path_to_network, sep=' ', skiprows=2, names= ["BuyerID", "SellerID", "Review", "Time"])
-    #df = df[['BuyerID', 'SellerID']]
-    print(df.head())
-    print(df.info())
-    
-    B = nx.Graph()
+    if verbose:
+        print("Information about the dataframe:")
+        print(df.head())
+        print(df.info())
 
-    buyer_list = list(set(df['BuyerID'].tolist()))
-    seller_list = list(set(df['SellerID'].tolist()))
+    # create lists with unique entries of both buyers and sellers to initiate unconnected nodes in the network
+    buyer_list = ['b'+str(x) for x in list(set(df['BuyerID'].tolist()))]
+    seller_list = ['s'+str(x) for x in list(set(df['SellerID'].tolist()))]
+    if verbose: print("# of Buyer nodes", len(buyer_list), "; # of Seller nodes", len(seller_list))
 
-    buyer_list = ['b'+str(x) for x in buyer_list]
-    seller_list = ['s'+str(x) for x in seller_list]
-
-    print("buyer length", len(buyer_list), "seller length", len(seller_list))
-
+    # create a multiedge-graph and fill it with all buyer & seller nodes, but first without edges
+    # it is not directed, because networkx 2.8.4 does not provide some functions for directed graphs
+    B = nx.MultiGraph(name="Companion Network")
     B.add_nodes_from(buyer_list, bipartite=0)
     B.add_nodes_from(seller_list, bipartite=1)
 
-    print(nx.info(B))
+    # add all edges, iterate through df and add each edge with a review and time attribute
+    # lowercase letters are for network/edge attributes, Uppercase letters are for dataframe columns
+    for index, row in df.iterrows():
+        B.add_edge("b"+str(row["BuyerID"]), "s"+str(row["SellerID"]), review=row['Review'], time=row['Time'])
+        if verbose and index<5:
+            print(row['BuyerID'], row['SellerID'], row['Review'], row['Time'])
 
-    """
-    ## Logic to add nodes and edges to graph with their metadata
-    for r, d in df.join(roles).iterrows():
-        pid = 'P{0}'.format(d['PersonID'])  # pid = "Person I.D."
-        cid = 'C{0}'.format(d['CrimeID'])  # cid = "Crime I.D."
-        bipartite_G.add_node(pid, bipartite='person')
-        bipartite_G.add_node(cid, bipartite='crime')
-        bipartite_G.add_edge(pid, cid, role=d['roles'])
-
-    ## Logic to add gender metadata to nodes
-    for idx in gender.index:
-        nodeid = 'P{0}'.format(idx+1)
-        bipartite_G.node[nodeid]['gender'] = gender.loc[idx]["gender"]
-    """
-
-
-    # Reading the file. "DiGraph" is telling to reading the data with node-node. "nodetype" will identify whether the node is number or string or any other type.
-    #g = nx.read_edgelist(path_to_network, create_using=nx.MultiDiGraph(), nodetype = int, data=(("review", int), ("time", int),))
-
-    # check if the data has been read properly or not.
-    
+    if verbose:
+        print(nx.info(B))
+        print("Graph is bipartite:", nx.is_bipartite(B))
 
     return B
 
 
 if __name__ == "__main__":
+    verbose = False #False #True
+
     # bipartite multiweighted
     # edges: 50632 buyer_nodes: 10106 seller_nodes: 6624
     filename = "../network/ia-escorts-dynamic.edges"
-    read_network(filename)
+    network = read_network(filename, verbose)
+
+    """
+    print(network["b1"]["s1"][0]["time"])
+    print(network["b1"]["s1"][0]["review"])
+    """
+
+    print("conneected components:", nx.number_connected_components(network))
+    comp = nx.node_connected_component(network, "s57") # the connected component including 's57' has x nodes in it
+    print(len(comp))
+
+    ccomp = nx.connected_components(network)
+    print(sum(1 for x in ccomp)) # total of 418 connected components
+
+
+
+
+
+
+    """
+    Does the performance of escorts increase or decrease over time?
+    What buyers tend towards giving higher ratings and what buyers do rather give lower ratings,
+    and then maybe do a ranking among them.
+    And based on this ranking, we could also adjust the rating of the escorts, something similar to a hub-authority thing.
+    
+    so for instance you could explore some extensions for this kind of networks, as the usual metrics might need to be adapted
+    you could also create projections on either side of the network (with all edges, just positive, just edges, etc) and study those, etc, etc
+    """
