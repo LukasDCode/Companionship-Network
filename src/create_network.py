@@ -49,24 +49,10 @@ if __name__ == "__main__":
     print(network["b1"]["s1"][0]["review"])
     """
 
+    # https://networkx.org/documentation/stable/reference/algorithms/component.html
     print("conneected components:", nx.number_connected_components(network))
     comp = nx.node_connected_component(network, "s57") # the connected component including 's57' has x nodes in it
     print(len(comp))
 
     ccomp = nx.connected_components(network)
     print(sum(1 for x in ccomp)) # total of 418 connected components
-
-
-
-
-
-
-    """
-    Does the performance of escorts increase or decrease over time?
-    What buyers tend towards giving higher ratings and what buyers do rather give lower ratings,
-    and then maybe do a ranking among them.
-    And based on this ranking, we could also adjust the rating of the escorts, something similar to a hub-authority thing.
-    
-    so for instance you could explore some extensions for this kind of networks, as the usual metrics might need to be adapted
-    you could also create projections on either side of the network (with all edges, just positive, just edges, etc) and study those, etc, etc
-    """
