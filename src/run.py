@@ -1,10 +1,12 @@
 import argparse
+import math
 import networkx as nx
 from tqdm import tqdm
 from datetime import datetime
 
 from create_network import read_network
 from utils.rankings import get_most_frequent, rank_by_avg_review
+from utils.list_utils import print_top_and_bottom_of_list, turn_weighted_ranking_to_dict
 
 
 def cleanse_network(network, verbose):
@@ -204,11 +206,78 @@ def analyze_giant_component(comp, network, verbose):
 
     buyer_ranking, seller_ranking = get_ranking_from_all_nodes(comp, network, subgraph)
     if verbose: make_prints_from_rankings(buyer_ranking, seller_ranking)
-    # format for both: [(id, avg_review), (id2, avg_review2), ...] sorted in descending order
-    ranking_review_buyer, ranking_review_seller = get_weighted_rankings(buyer_ranking, seller_ranking, verbose)
+    # format for both: [(id, avg_review, num_reviews), (id2, avg_review2, num_reviews2), ...] sorted in descending order
+    # TODO comment verbose back in at end
+    ranking_review_buyer, ranking_review_seller = get_2_attribute_ranking_rankings(buyer_ranking, seller_ranking, False) #verbose)
+    weighted_buyer_rankin = get_weighted_buyer_ranking(ranking_review_buyer)
 
-def get_weighted_rankings(buyer_ranking, seller_ranking, verbose):
-    # format: [(id, avg_review), (id2, avg_review2), ...] sorted in descending order
+    if verbose:
+        print("Print weighted list:")
+        print_top_and_bottom_of_list(weighted_buyer_rankin, k=7)
+
+    weighted_buyer_ranking_dict = turn_weighted_ranking_to_dict(weighted_buyer_rankin)
+    weighted_seller_ranking = get_weighted_seller_ranking(subgraph, comp, weighted_buyer_ranking_dict, verbose)
+
+    breaker = 5
+    for key, value in weighted_seller_ranking.items():
+        if breaker <= 0:
+            break
+        breaker -= 1
+        print("Weighted Seller Ranking:", key, value)
+        
+
+        
+def get_weighted_seller_ranking(graph, comp, weighted_buyer_rankin_dict, verbose):
+
+    print("+++++ +++++ +++++ +++++ +++++ +++++ +++++ +++++ +++++")
+    print("+++++ +++++ +++++ +++++ +++++ +++++ +++++ +++++ +++++")
+    print("+++++ +++++ +++++ +++++ +++++ +++++ +++++ +++++ +++++")
+
+    # format: weighted_seller_ranking = {'id': (weighted_ranking, num_of_reviews), 'id2': ...}
+    weighted_seller_ranking = {}
+    for node in comp:
+        weighted_ranking = 0.0
+        # leave out all the nodes which are only loosely connected to the giant component by less than 3 edges
+        edges = graph.edges(node)
+        if len(edges) > 2:
+            # only looking at seller nodes here
+            if node[0] == 's':
+                for edge in edges:
+                    (u,v) = edge
+                    data = graph.get_edge_data(u,v)
+                    buyer_id = ""
+                    for index in range(len(data)):
+                        # u and v are not always the same (buyer or seller) because the graph is undirected
+                        if u[0] == 'b': buyer_id = u
+                        else: buyer_id = v
+                        if buyer_id in weighted_buyer_rankin_dict:
+                            weighted_ranking += weighted_buyer_rankin_dict[buyer_id] * data[index]['review'] # += weight * review
+                        
+            weighted_seller_ranking[node] = weighted_ranking
+    return weighted_seller_ranking
+
+
+def get_weighted_buyer_ranking(ranking):
+    # give each buyer a ranking depending on the average review he gives and the amount of all reviews
+    weighted_ranking = []
+    for (id, avg_review, num_reviews) in ranking:
+        weight = (1.1-abs(avg_review)) * math.log(num_reviews, 2)
+        weighted_ranking.append((id, weight))
+    return weighted_ranking
+    """
+    Explanation for the calculation of 'weight':
+    Buyers who will always give negative (-1) or positive (1) reviews, will have an avg_review of -1 or 1 respectively.
+    But these reviews are not as informative, as they either always like their purchase or they always dislike it.
+    So these buyers are weighted less, but they can still make up for it by the amount of reviews they give.
+    The amount of reviews is scaled down logarithmically, because just someone gives 1000 reviews
+    it does not mean that his opinion is worth 1000 more of someone who just gives 1 review.
+    But someone who gives a lot of reviews, and therefore a lot of data, should still be rewarded for his behavior,
+    this is why the amount of reviews are scaled back by a logarithm to the base of 2.
+    """
+
+
+def get_2_attribute_ranking_rankings(buyer_ranking, seller_ranking, verbose):
+    # format: [(id, avg_review, num_reviews), (id2, avg_review2, num_reviews2), ...] sorted in descending order
     ranking_review_buyer = rank_by_avg_review(buyer_ranking)
     ranking_review_seller = rank_by_avg_review(seller_ranking)
 
@@ -241,11 +310,12 @@ def get_ranking_from_all_nodes(comp, network, subgraph):
     #for node in tqdm(comp):
     for node in comp:
         # TODO remove counter break code
-        if break_counter <= 0:
-            break
-        break_counter -= 1
+        #if break_counter <= 0:
+        #    break
+        #break_counter -= 1
 
         # leave out all the nodes which are only loosely connected to the giant component by less than 3 edges
+        # they do not provide any informational value for this analysis, as their participation is too rare
         edges = network.edges(node)
         if len(edges) > 2:
             if node[0] == 'b':
