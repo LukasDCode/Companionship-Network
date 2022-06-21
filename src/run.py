@@ -218,6 +218,8 @@ def analyze_giant_component(comp, network, verbose):
     weighted_buyer_ranking_dict = turn_weighted_ranking_to_dict(weighted_buyer_rankin)
     weighted_seller_ranking = get_weighted_seller_ranking(subgraph, comp, weighted_buyer_ranking_dict, verbose)
 
+    # TODO remove this stuff below
+    print("5 entries of the Weighted Seller Ranking dict:")
     breaker = 5
     for key, value in weighted_seller_ranking.items():
         if breaker <= 0:
@@ -228,11 +230,6 @@ def analyze_giant_component(comp, network, verbose):
 
         
 def get_weighted_seller_ranking(graph, comp, weighted_buyer_rankin_dict, verbose):
-
-    print("+++++ +++++ +++++ +++++ +++++ +++++ +++++ +++++ +++++")
-    print("+++++ +++++ +++++ +++++ +++++ +++++ +++++ +++++ +++++")
-    print("+++++ +++++ +++++ +++++ +++++ +++++ +++++ +++++ +++++")
-
     # format: weighted_seller_ranking = {'id': (weighted_ranking, num_of_reviews), 'id2': ...}
     weighted_seller_ranking = {}
     for node in comp:
