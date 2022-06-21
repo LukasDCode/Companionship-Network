@@ -1,6 +1,7 @@
 import argparse
 import networkx as nx
 from tqdm import tqdm
+from datetime import datetime
 
 from create_network import read_network
 from utils.rankings import get_most_frequent, rank_by_avg_review
@@ -121,7 +122,7 @@ def analyze_entire_network(network, verbose):
             # store giant component to analyze it later on, after all the 3 & 4 node components
             giant_component = comp
     
-    # TODO uncomment
+    # TODO uncomment - now left out to not overcrowd the console
     """
     print("Components of size 3:", comp_size_3_counter)
     print("Buyer-heavy components of size 3:", buyer_heavy_size_3_comp_counter)
@@ -192,28 +193,61 @@ def analyze_size_4_comp(comp):
         return 0, 0, 0
     
 def analyze_giant_component(comp, network, verbose):
+    # this is where all the important stuff from the giant component happens
+    # here all other methods are called
+    print("Giant component size of", len(comp))
     subgraph = network.subgraph(comp)
     subgraph.name = "Giant Component of Companion Network"
     if verbose:
         print(nx.info(subgraph))
-    
+        general_edge_analysis(subgraph)
+
+    buyer_ranking, seller_ranking = get_ranking_from_all_nodes(comp, network, subgraph)
+    if verbose: make_prints_from_rankings(buyer_ranking, seller_ranking)
+    # format for both: [(id, avg_review), (id2, avg_review2), ...] sorted in descending order
+    ranking_review_buyer, ranking_review_seller = get_weighted_rankings(buyer_ranking, seller_ranking, verbose)
+
+def get_weighted_rankings(buyer_ranking, seller_ranking, verbose):
+    # format: [(id, avg_review), (id2, avg_review2), ...] sorted in descending order
+    ranking_review_buyer = rank_by_avg_review(buyer_ranking)
+    ranking_review_seller = rank_by_avg_review(seller_ranking)
+
+    if verbose:
+        top_5, bottom_5 = 5, 5
+        print("Average buyer ranking:")
+        for id, avg_review, num_of_reviews in ranking_review_buyer[:top_5]:
+            print("Buyer", id, "with avg review score of", avg_review, "and", num_of_reviews, "purchases")
+        print("...")
+        for id, avg_review, num_of_reviews in ranking_review_buyer[-bottom_5:]:
+            print("Buyer", id, "with avg review score of", avg_review, "and", num_of_reviews, "purchases")
+
+        print("Average seller ranking:")
+        for id, avg_review, num_of_reviews in ranking_review_seller[:top_5]:
+            print("Seller", id, "with avg review score of", avg_review, "and", num_of_reviews, "sells")
+        print("...")
+        for id, avg_review, num_of_reviews in ranking_review_seller[-bottom_5:]:
+            print("Seller", id, "with avg review score of", avg_review, "and", num_of_reviews, "sells")
+
+    return ranking_review_buyer, ranking_review_seller
+
+
+def get_ranking_from_all_nodes(comp, network, subgraph):
     buyer_ranking, seller_ranking = {}, {}
 
     #TODO remove
-    break_counter = 10
+    break_counter = 100 # only analyse the first x nodes and break before going further
 
     # TODO uncomment & switch
     #for node in tqdm(comp):
     for node in comp:
-
         # TODO remove counter break code
         if break_counter <= 0:
             break
         break_counter -= 1
 
+        # leave out all the nodes which are only loosely connected to the giant component by less than 3 edges
         edges = network.edges(node)
         if len(edges) > 2:
-
             if node[0] == 'b':
                 buyer_ranking[node] = []
                 for edge in edges:
@@ -229,40 +263,43 @@ def analyze_giant_component(comp, network, verbose):
                     data = subgraph.get_edge_data(u,v)
                     for index in range(len(data)):
                         seller_ranking[node].append((data[index]['time'], data[index]['review']))
-                    
+    return buyer_ranking,seller_ranking
 
+def make_prints_from_rankings(buyer_ranking, seller_ranking):
+    # format: [(id, frequency), (id2, frequency2), ...] sorted in descending order
     most_frequent_buyer = get_most_frequent(buyer_ranking)
     most_frequent_seller = get_most_frequent(seller_ranking)
     print("Buyer frequency:", most_frequent_buyer)
     print("Seller frequency:", most_frequent_seller)
-    most_frequent_buyer_dict = dict(most_frequent_buyer)
-    most_frequent_seller_dict = dict(most_frequent_seller)
 
-    ranking_review_buyer = rank_by_avg_review(buyer_ranking)
-    ranking_review_seller = rank_by_avg_review(seller_ranking)
 
-    print("Average buyer ranking:")
-    for id, avg_review in ranking_review_buyer:
-        print("Buyer", id, "with avg review score of", avg_review, "and", most_frequent_buyer_dict[id], "purchases")
-
-    print("Average seller ranking:")
-    for id, avg_review in ranking_review_seller:
-        print("Seller", id, "with avg review score of", avg_review, "and", most_frequent_seller_dict[id], "sells")
-
+def general_edge_analysis(graph):
+    edges = graph.edges.data()
+    positive_review_counter, negative_review_counter, neutral_review_counter = 0, 0, 0
+    min_time, max_time = 2999999999, 0 # min = 24.Jan.2065 some time
+    for (u,v,data) in edges:
+        if data['review'] == 1: positive_review_counter += 1
+        elif data['review'] == 0: neutral_review_counter += 1
+        elif data['review'] == -1: negative_review_counter += 1
+        else: raise ValueError("Review value not within {1;0;-1} -->", data['review']) # should not occur
+        # for the first iteration only one time condition can be met,
+        # but for multiple runs it is a little more efficient, because of less checks
+        if data['time'] < min_time: min_time = data['time']
+        elif data['time'] > max_time: max_time = data['time']
+    print("Total amount of positive reviews:", positive_review_counter)
+    print("Total amount of neutral reviews:", neutral_review_counter)
+    print("Total amount of negative reviews:", negative_review_counter)
+    print("First review happend on", datetime.fromtimestamp(min_time).strftime('%d %B %Y'))
+    print("Last  review happend on", datetime.fromtimestamp(max_time).strftime('%d %B %Y'))
 
 
 def main(args):
     # bipartite multiweighted
     # edges: 50632 buyer_nodes: 10106 seller_nodes: 6624
     filename = "../network/ia-escorts-dynamic.edges"
-    
-    # TODO
-    network = read_network(filename, verbose=False) #verbose=args.verbose)
-
-    # TODO
-    network = cleanse_network(network, verbose=False) #verbose=args.verbose)
+    network = read_network(filename, verbose=args.verbose)
+    network = cleanse_network(network, verbose=args.verbose)
     analyze_entire_network(network, verbose=args.verbose)    
-
 
 
 if __name__ == "__main__":
