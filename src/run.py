@@ -44,6 +44,7 @@ def cleanse_network(network, verbose):
         print("Removed nodes:", 2*removed_comp_counter, "Removed edges:", removed_edges_counter)
     return network
 
+
 def analyze_entire_network(network, verbose):
     # https://networkx.org/documentation/stable/reference/algorithms/component.html
     print("Total amount of connected components:", nx.number_connected_components(network))
@@ -123,8 +124,6 @@ def analyze_entire_network(network, verbose):
             # store giant component to analyze it later on, after all the 3 & 4 node components
             giant_component = comp
     
-    # TODO uncomment - now left out to not overcrowd the console
-    """
     print("Components of size 3:", comp_size_3_counter)
     print("Buyer-heavy components of size 3:", buyer_heavy_size_3_comp_counter)
     print("Seller-heavy components of size 3:", seller_heavy_size_3_comp_counter)
@@ -138,9 +137,9 @@ def analyze_entire_network(network, verbose):
 
     print("Components of size 5, 6, 7 or 8:", comp_size_5_to_8_counter)
     print("Amount of edges within all components of size 5, 6, 7 or 8:", size_5_to_8_comp_num_of_edges)
-    """
 
-    # TODO change verbose back to variable
+    # Here, finally the giant component gets analyzed
+    #TODO change back verbose to variable and not hardcoded True
     analyze_giant_component(giant_component, network, True) #verbose)
 
 
@@ -192,7 +191,8 @@ def analyze_size_4_comp(comp):
     else:
         # this should only occur in an Error case
         return 0, 0, 0
-    
+
+
 def analyze_giant_component(comp, network, verbose):
     # this is where all the important stuff from the giant component happens
     # here all other methods are called
@@ -206,8 +206,7 @@ def analyze_giant_component(comp, network, verbose):
     buyer_ranking, seller_ranking = get_ranking_from_all_nodes(comp, subgraph)
     if verbose: make_prints_from_rankings(buyer_ranking, seller_ranking)
     # format for both: [(id, avg_review, num_reviews), (id2, avg_review2, num_reviews2), ...] sorted in descending order
-    # TODO comment verbose back in at end
-    ranking_review_buyer, ranking_review_seller = get_2_attribute_ranking_rankings(buyer_ranking, seller_ranking, False) #verbose)
+    ranking_review_buyer, ranking_review_seller = get_2_attribute_ranking_rankings(buyer_ranking, seller_ranking, verbose)
     weighted_buyer_ranking = get_weighted_buyer_ranking(ranking_review_buyer)
 
     if verbose:
@@ -239,6 +238,7 @@ def plot_change_counter_dict(change_counter_dict):
     plt.savefig("../plots/rank_change_of_sellers_after_weighting_buyers.png")
     plt.close()   
 
+
 def compare_weighted_with_unweighted(weighted_ranking, unweighted_ranking):
     # print only the first 5 and the last 5 entries
     print_range = 5
@@ -248,7 +248,6 @@ def compare_weighted_with_unweighted(weighted_ranking, unweighted_ranking):
     else:
         #print_range = list(range(print_range))
         #print_range.extend(list(range(len(weighted_ranking)-5, len(weighted_ranking))))
-        print(type(weighted_ranking), type(unweighted_ranking), "print range:", print_range)
         print("Comparison between weighted and unweighted seller ranking:")
         for index in range(print_range):# range(len(weighted_ranking)):
             (w_id, w_avg_review, w_num_reviews) = weighted_ranking[index] # w for weighted
@@ -261,6 +260,7 @@ def compare_weighted_with_unweighted(weighted_ranking, unweighted_ranking):
             print(str(index+1)+".", w_id, "avg", w_avg_review, "#", w_num_reviews, "vs.", u_id, "avg", u_avg_review, "#", u_num_reviews)
         
         return analyze_change_of_ranks(weighted_ranking, unweighted_ranking)
+
 
 def analyze_change_of_ranks(weighted_ranking, unweighted_ranking):
     change_counter = Counter()
@@ -368,6 +368,7 @@ def get_ranking_from_all_nodes(comp, subgraph):
                     for index in range(len(data)):
                         seller_ranking[node].append((data[index]['time'], data[index]['review']))
     return buyer_ranking,seller_ranking
+
 
 def make_prints_from_rankings(buyer_ranking, seller_ranking):
     print_range = 5
