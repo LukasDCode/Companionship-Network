@@ -1,8 +1,9 @@
 import argparse
 import math
 import networkx as nx
-from tqdm import tqdm
 from datetime import datetime
+from collections import Counter
+import matplotlib.pylab as plt
 
 from create_network import read_network
 from utils.rankings import get_most_frequent, rank_by_avg_review, sort_avg_review_list
@@ -56,7 +57,6 @@ def analyze_entire_network(network, verbose):
 
     # iterate through all components and do different analyses on them
     for comp in connected_components:
-        #print("Size of component:", len(comp))
         if len(comp) == 3:
             comp_size_3_counter += 1
             buyer_heavy, seller_heavy = analyze_size_3_comp(comp)
@@ -69,7 +69,6 @@ def analyze_entire_network(network, verbose):
                 print("This 3-node-component has more than two edges:", u, v, w, "# of edges", tmp.number_of_edges())
                 print(tmp.get_edge_data(u,v), tmp.get_edge_data(u,w), tmp.get_edge_data(v,w))
             size_3_comp_num_of_edges += tmp.number_of_edges()
-
             """
             Out of all 3-node-components, 3 have more than 2 edges. All 3 of them have 3 edges.
             All of these 3 edges have a weighting of +1, making them little informative.
@@ -99,7 +98,7 @@ def analyze_entire_network(network, verbose):
             One has 4 edges with +1 reviews, making them little informative.
             But it has to be said that the component consists of 1 seller and 3 buyers, which all seemed to be satisfied with the product/service.
             The other has 4 edges with one 0 review and three -1 reviews, outlining it as either a bad service/product
-            or as highly critical buyers, who expected more for their money.
+            or as highly critical buyers, who expected more from their purchase.
             Looking closer at the components reveals that it consists of 2 sellers and 2 buyers.
             Lets call the sellers s1 & s2 and the buyers b1 & b2.
             In chronological order:
@@ -204,42 +203,74 @@ def analyze_giant_component(comp, network, verbose):
         print(nx.info(subgraph))
         general_edge_analysis(subgraph)
 
-    buyer_ranking, seller_ranking = get_ranking_from_all_nodes(comp, network, subgraph)
-    print("--------------- 1. Seller ranking length:", len(seller_ranking))
+    buyer_ranking, seller_ranking = get_ranking_from_all_nodes(comp, subgraph)
     if verbose: make_prints_from_rankings(buyer_ranking, seller_ranking)
     # format for both: [(id, avg_review, num_reviews), (id2, avg_review2, num_reviews2), ...] sorted in descending order
     # TODO comment verbose back in at end
     ranking_review_buyer, ranking_review_seller = get_2_attribute_ranking_rankings(buyer_ranking, seller_ranking, False) #verbose)
     weighted_buyer_ranking = get_weighted_buyer_ranking(ranking_review_buyer)
-    print("--------------- 2. Seller ranking review length:", len(ranking_review_seller))
 
     if verbose:
         print("Print weighted list:")
         print_top_and_bottom_of_list(weighted_buyer_ranking, k=7)
 
-
-    # TODO SOMETHING FISHY HERE; weighted seller dict and list should be of size 2848 and not 7k
     weighted_buyer_ranking_dict = turn_weighted_ranking_to_dict(weighted_buyer_ranking)
     weighted_seller_ranking_dict, weighted_seller_list = get_weighted_seller_ranking(subgraph, comp, weighted_buyer_ranking_dict, verbose)
 
-    print("--------------- 3. Seller ranking dict length:", len(weighted_seller_ranking_dict))
-    print("--------------- 4. Seller ranking list length:", len(weighted_seller_list))
+    """
+    Here we are working with 2848 sellers and 4200 buyers from the giant component.
+    All others with less edges have been filtered out because they are less connected and their rankings do not provide any information.
+    """
 
-    # TODO somehow they do not have the same length... FIX !!
     weighted_seller_ranking_list = sort_avg_review_list(weighted_seller_list)
-    compare_weighted_with_unweighted(weighted_seller_ranking_list, seller_ranking)
-        
+    change_counter_dict = compare_weighted_with_unweighted(weighted_seller_ranking_list, ranking_review_seller)
+    plot_change_counter_dict(change_counter_dict)
+
+
+def plot_change_counter_dict(change_counter_dict):
+    # Source: https://stackoverflow.com/a/37266356
+    lists = sorted(change_counter_dict.items()) # sorted by key, return a list of tuples
+    x, y = zip(*lists) # unpack a list of pairs into two tuples
+    plt.bar(x, y)
+    plt.title('Sellers that changed their ranking after weighting the buyers.')
+    plt.xlabel('Change of ranks')
+    plt.ylabel('Number of sellers that changed rank')
+    #plt.show()
+    plt.savefig("../plots/rank_change_of_sellers_after_weighting_buyers.png")
+    plt.close()   
 
 def compare_weighted_with_unweighted(weighted_ranking, unweighted_ranking):
+    # print only the first 5 and the last 5 entries
+    print_range = 5
     if len(weighted_ranking) != len(unweighted_ranking):
         print("Weighted and unweighted seller list do not have the same length! Could not compare!")
         print("Weighted:", len(weighted_ranking), "unweighted:", len(unweighted_ranking))
     else:
-        for index in range(len(weighted_ranking)):
+        #print_range = list(range(print_range))
+        #print_range.extend(list(range(len(weighted_ranking)-5, len(weighted_ranking))))
+        print(type(weighted_ranking), type(unweighted_ranking), "print range:", print_range)
+        print("Comparison between weighted and unweighted seller ranking:")
+        for index in range(print_range):# range(len(weighted_ranking)):
             (w_id, w_avg_review, w_num_reviews) = weighted_ranking[index] # w for weighted
             (u_id, u_avg_review, u_num_reviews) = unweighted_ranking[index] # u for unweighted
-            print("Comparison between weighted and unweighted seller ranking:")
             print(str(index+1)+".", w_id, "avg", w_avg_review, "#", w_num_reviews, "vs.", u_id, "avg", u_avg_review, "#", u_num_reviews)
+        print("...")
+        for index in range(len(weighted_ranking)-print_range, len(weighted_ranking)):# range(len(weighted_ranking)):
+            (w_id, w_avg_review, w_num_reviews) = weighted_ranking[index] # w for weighted
+            (u_id, u_avg_review, u_num_reviews) = unweighted_ranking[index] # u for unweighted
+            print(str(index+1)+".", w_id, "avg", w_avg_review, "#", w_num_reviews, "vs.", u_id, "avg", u_avg_review, "#", u_num_reviews)
+        
+        return analyze_change_of_ranks(weighted_ranking, unweighted_ranking)
+
+def analyze_change_of_ranks(weighted_ranking, unweighted_ranking):
+    change_counter = Counter()
+    for w_index, (w_id, _, _) in enumerate(weighted_ranking):
+        for u_index, (u_id, _, _) in enumerate(unweighted_ranking):
+            if w_id == u_id:
+                change = u_index - w_index
+                change_counter[change] += 1
+    return dict(change_counter)
+
         
 def get_weighted_seller_ranking(graph, comp, weighted_buyer_rankin_dict, verbose):
     # format: weighted_seller_ranking_dict = {'id': (weighted_ranking, num_of_reviews), 'id2': ...}
@@ -263,8 +294,8 @@ def get_weighted_seller_ranking(graph, comp, weighted_buyer_rankin_dict, verbose
                         if buyer_id in weighted_buyer_rankin_dict:
                             weighted_ranking += weighted_buyer_rankin_dict[buyer_id] * data[index]['review'] # += weight * review
                         
-            weighted_seller_ranking_dict[node] = (weighted_ranking, len(edges))
-            weighted_seller_ranking_list.append((node, weighted_ranking, len(edges)))
+                weighted_seller_ranking_dict[node] = (weighted_ranking, len(edges))
+                weighted_seller_ranking_list.append((node, weighted_ranking, len(edges)))
     return weighted_seller_ranking_dict, weighted_seller_ranking_list
 
 
@@ -293,41 +324,33 @@ def get_2_attribute_ranking_rankings(buyer_ranking, seller_ranking, verbose):
     ranking_review_seller = rank_by_avg_review(seller_ranking)
 
     if verbose:
-        top_5, bottom_5 = 5, 5
+        # print only the top 5 and bottom 5 of the rankings
+        print_range = 5
         print("Average buyer ranking:")
-        for id, avg_review, num_of_reviews in ranking_review_buyer[:top_5]:
+        for id, avg_review, num_of_reviews in ranking_review_buyer[:print_range]:
             print("Buyer", id, "with avg review score of", avg_review, "and", num_of_reviews, "purchases")
         print("...")
-        for id, avg_review, num_of_reviews in ranking_review_buyer[-bottom_5:]:
+        for id, avg_review, num_of_reviews in ranking_review_buyer[-print_range:]:
             print("Buyer", id, "with avg review score of", avg_review, "and", num_of_reviews, "purchases")
 
         print("Average seller ranking:")
-        for id, avg_review, num_of_reviews in ranking_review_seller[:top_5]:
+        for id, avg_review, num_of_reviews in ranking_review_seller[:print_range]:
             print("Seller", id, "with avg review score of", avg_review, "and", num_of_reviews, "sells")
         print("...")
-        for id, avg_review, num_of_reviews in ranking_review_seller[-bottom_5:]:
+        for id, avg_review, num_of_reviews in ranking_review_seller[-print_range:]:
             print("Seller", id, "with avg review score of", avg_review, "and", num_of_reviews, "sells")
 
     return ranking_review_buyer, ranking_review_seller
 
 
-def get_ranking_from_all_nodes(comp, network, subgraph):
+def get_ranking_from_all_nodes(comp, subgraph):
+    # format: dict = {'id': [(time, review), (time, review), ...], 'id2': [(),(), ...], ...}
     buyer_ranking, seller_ranking = {}, {}
 
-    #TODO remove
-    break_counter = 100 # only analyse the first x nodes and break before going further
-
-    # TODO uncomment & switch
-    #for node in tqdm(comp):
     for node in comp:
-        # TODO remove counter break code
-        #if break_counter <= 0:
-        #    break
-        #break_counter -= 1
-
         # leave out all the nodes which are only loosely connected to the giant component by less than 3 edges
         # they do not provide any informational value for this analysis, as their participation is too rare
-        edges = network.edges(node)
+        edges = subgraph.edges(node)
         if len(edges) > 2:
             if node[0] == 'b':
                 buyer_ranking[node] = []
@@ -347,11 +370,12 @@ def get_ranking_from_all_nodes(comp, network, subgraph):
     return buyer_ranking,seller_ranking
 
 def make_prints_from_rankings(buyer_ranking, seller_ranking):
+    print_range = 5
     # format: [(id, frequency), (id2, frequency2), ...] sorted in descending order
     most_frequent_buyer = get_most_frequent(buyer_ranking)
     most_frequent_seller = get_most_frequent(seller_ranking)
-    print("Buyer frequency:", most_frequent_buyer[:5], "...")
-    print("Seller frequency:", most_frequent_seller[:5], "...")
+    print("Buyer frequency:", most_frequent_buyer[:print_range], "...")
+    print("Seller frequency:", most_frequent_seller[:print_range], "...")
 
 
 def general_edge_analysis(graph):
