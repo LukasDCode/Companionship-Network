@@ -5,7 +5,7 @@ from tqdm import tqdm
 from datetime import datetime
 
 from create_network import read_network
-from utils.rankings import get_most_frequent, rank_by_avg_review
+from utils.rankings import get_most_frequent, rank_by_avg_review, sort_avg_review_list
 from utils.list_utils import print_top_and_bottom_of_list, turn_weighted_ranking_to_dict
 
 
@@ -205,33 +205,46 @@ def analyze_giant_component(comp, network, verbose):
         general_edge_analysis(subgraph)
 
     buyer_ranking, seller_ranking = get_ranking_from_all_nodes(comp, network, subgraph)
+    print("--------------- 1. Seller ranking length:", len(seller_ranking))
     if verbose: make_prints_from_rankings(buyer_ranking, seller_ranking)
     # format for both: [(id, avg_review, num_reviews), (id2, avg_review2, num_reviews2), ...] sorted in descending order
     # TODO comment verbose back in at end
     ranking_review_buyer, ranking_review_seller = get_2_attribute_ranking_rankings(buyer_ranking, seller_ranking, False) #verbose)
-    weighted_buyer_rankin = get_weighted_buyer_ranking(ranking_review_buyer)
+    weighted_buyer_ranking = get_weighted_buyer_ranking(ranking_review_buyer)
+    print("--------------- 2. Seller ranking review length:", len(ranking_review_seller))
 
     if verbose:
         print("Print weighted list:")
-        print_top_and_bottom_of_list(weighted_buyer_rankin, k=7)
+        print_top_and_bottom_of_list(weighted_buyer_ranking, k=7)
 
-    weighted_buyer_ranking_dict = turn_weighted_ranking_to_dict(weighted_buyer_rankin)
-    weighted_seller_ranking = get_weighted_seller_ranking(subgraph, comp, weighted_buyer_ranking_dict, verbose)
 
-    # TODO remove this stuff below
-    print("5 entries of the Weighted Seller Ranking dict:")
-    breaker = 5
-    for key, value in weighted_seller_ranking.items():
-        if breaker <= 0:
-            break
-        breaker -= 1
-        print("Weighted Seller Ranking:", key, value)
+    # TODO SOMETHING FISHY HERE; weighted seller dict and list should be of size 2848 and not 7k
+    weighted_buyer_ranking_dict = turn_weighted_ranking_to_dict(weighted_buyer_ranking)
+    weighted_seller_ranking_dict, weighted_seller_list = get_weighted_seller_ranking(subgraph, comp, weighted_buyer_ranking_dict, verbose)
+
+    print("--------------- 3. Seller ranking dict length:", len(weighted_seller_ranking_dict))
+    print("--------------- 4. Seller ranking list length:", len(weighted_seller_list))
+
+    # TODO somehow they do not have the same length... FIX !!
+    weighted_seller_ranking_list = sort_avg_review_list(weighted_seller_list)
+    compare_weighted_with_unweighted(weighted_seller_ranking_list, seller_ranking)
         
 
+def compare_weighted_with_unweighted(weighted_ranking, unweighted_ranking):
+    if len(weighted_ranking) != len(unweighted_ranking):
+        print("Weighted and unweighted seller list do not have the same length! Could not compare!")
+        print("Weighted:", len(weighted_ranking), "unweighted:", len(unweighted_ranking))
+    else:
+        for index in range(len(weighted_ranking)):
+            (w_id, w_avg_review, w_num_reviews) = weighted_ranking[index] # w for weighted
+            (u_id, u_avg_review, u_num_reviews) = unweighted_ranking[index] # u for unweighted
+            print("Comparison between weighted and unweighted seller ranking:")
+            print(str(index+1)+".", w_id, "avg", w_avg_review, "#", w_num_reviews, "vs.", u_id, "avg", u_avg_review, "#", u_num_reviews)
         
 def get_weighted_seller_ranking(graph, comp, weighted_buyer_rankin_dict, verbose):
-    # format: weighted_seller_ranking = {'id': (weighted_ranking, num_of_reviews), 'id2': ...}
-    weighted_seller_ranking = {}
+    # format: weighted_seller_ranking_dict = {'id': (weighted_ranking, num_of_reviews), 'id2': ...}
+    # format: weighted_seller_ranking_list = [(id, weighted_review, num_reviews), (id2, weighted_review2, num_reviews2), ...]
+    weighted_seller_ranking_dict, weighted_seller_ranking_list = {}, []
     for node in comp:
         weighted_ranking = 0.0
         # leave out all the nodes which are only loosely connected to the giant component by less than 3 edges
@@ -250,8 +263,9 @@ def get_weighted_seller_ranking(graph, comp, weighted_buyer_rankin_dict, verbose
                         if buyer_id in weighted_buyer_rankin_dict:
                             weighted_ranking += weighted_buyer_rankin_dict[buyer_id] * data[index]['review'] # += weight * review
                         
-            weighted_seller_ranking[node] = weighted_ranking
-    return weighted_seller_ranking
+            weighted_seller_ranking_dict[node] = (weighted_ranking, len(edges))
+            weighted_seller_ranking_list.append((node, weighted_ranking, len(edges)))
+    return weighted_seller_ranking_dict, weighted_seller_ranking_list
 
 
 def get_weighted_buyer_ranking(ranking):
@@ -336,8 +350,8 @@ def make_prints_from_rankings(buyer_ranking, seller_ranking):
     # format: [(id, frequency), (id2, frequency2), ...] sorted in descending order
     most_frequent_buyer = get_most_frequent(buyer_ranking)
     most_frequent_seller = get_most_frequent(seller_ranking)
-    print("Buyer frequency:", most_frequent_buyer)
-    print("Seller frequency:", most_frequent_seller)
+    print("Buyer frequency:", most_frequent_buyer[:5], "...")
+    print("Seller frequency:", most_frequent_seller[:5], "...")
 
 
 def general_edge_analysis(graph):
@@ -354,10 +368,23 @@ def general_edge_analysis(graph):
         if data['time'] < min_time: min_time = data['time']
         elif data['time'] > max_time: max_time = data['time']
     print("Total amount of positive reviews:", positive_review_counter)
-    print("Total amount of neutral reviews:", neutral_review_counter)
+    print("Total amount of neutral  reviews:", neutral_review_counter)
     print("Total amount of negative reviews:", negative_review_counter)
     print("First review happend on", datetime.fromtimestamp(min_time).strftime('%d %B %Y'))
     print("Last  review happend on", datetime.fromtimestamp(max_time).strftime('%d %B %Y'))
+
+    nodes = list(graph.nodes)
+    buyer_counter, seller_counter, seller_counter_mediocre_connected = 0, 0, 0
+    for node in nodes:
+        if node[0] == 'b':
+            buyer_counter += 1
+        elif node[0] == 's':
+            seller_counter += 1
+            num_edges = len(graph.edges(node))
+            if num_edges > 2: seller_counter_mediocre_connected += 1
+    print("Total amount of buyer  nodes:", buyer_counter)
+    print("Total amount of seller nodes:", seller_counter)
+    print("out of which", seller_counter_mediocre_connected, "have more than 2 edges to buyers")
 
 
 def main(args):
