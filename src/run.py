@@ -224,6 +224,7 @@ def analyze_giant_component(comp, network, verbose):
     weighted_seller_ranking_list = sort_avg_review_list(weighted_seller_list)
     change_counter_dict = compare_weighted_with_unweighted(weighted_seller_ranking_list, ranking_review_seller)
     plot_change_counter_dict(change_counter_dict)
+    plot_bagged_change_counter_dict(change_counter_dict)
 
 
 def plot_change_counter_dict(change_counter_dict):
@@ -235,8 +236,30 @@ def plot_change_counter_dict(change_counter_dict):
     plt.xlabel('Change of ranks')
     plt.ylabel('Number of sellers that changed rank')
     #plt.show()
-    plt.savefig("../plots/rank_change_of_sellers_after_weighting_buyers.png")
-    plt.close()   
+    plt.savefig("plots/rank_change_of_sellers_after_weighting_buyers.png")
+    plt.close()
+    
+    
+def plot_bagged_change_counter_dict(change_counter_dict, bag_size=100):
+    # Source: https://stackoverflow.com/a/37266356
+    bagged_dict = dict()
+    lists = sorted(change_counter_dict.items()) # sorted by key, return a list of tuples
+    for x1, x2 in lists:
+        bag = ((x1 + 2000) // bag_size) - (2000 // bag_size)
+        if bag not in bagged_dict.keys():
+            bagged_dict[bag] = x2
+        else:
+            bagged_dict[bag] += x2
+    
+    lists = sorted(bagged_dict.items()) # sorted by key, return a list of tuples
+    x, y = zip(*lists) # unpack a list of pairs into two tuples
+    plt.bar(x, y)
+    plt.title(f'Sellers that changed their ranking after weighting the buyers\nbag size = {bag_size}')
+    plt.xlabel('Change of ranks')
+    plt.ylabel('Number of sellers that changed rank')
+    #plt.show()
+    plt.savefig(f'plots/{bag_size}bag_rank_change_of_sellers_after_weighting_buyers.png')
+    plt.close()
 
 
 def compare_weighted_with_unweighted(weighted_ranking, unweighted_ranking):
@@ -415,7 +438,7 @@ def general_edge_analysis(graph):
 def main(args):
     # bipartite multiweighted
     # edges: 50632 buyer_nodes: 10106 seller_nodes: 6624
-    filename = "../network/ia-escorts-dynamic.edges"
+    filename = "network/ia-escorts-dynamic.edges"
     network = read_network(filename, verbose=args.verbose)
     network = cleanse_network(network, verbose=args.verbose)
     analyze_entire_network(network, verbose=args.verbose)    
