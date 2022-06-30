@@ -224,7 +224,7 @@ def analyze_giant_component(comp, network, verbose):
 
     weighted_seller_ranking_list = sort_avg_review_list(weighted_seller_list)
     change_counter_dict = compare_weighted_with_unweighted(weighted_seller_ranking_list, ranking_review_seller)
-    plot_change_counter_dict(change_counter_dict)
+    #plot_change_counter_dict(change_counter_dict)
     plot_bagged_change_counter_dict(change_counter_dict)
 
 
@@ -254,10 +254,20 @@ def plot_bagged_change_counter_dict(change_counter_dict, bag_size=100):
     
     lists = sorted(bagged_dict.items()) # sorted by key, return a list of tuples
     x, y = zip(*lists) # unpack a list of pairs into two tuples
+    bagged_x_labels = [i*bag_size for i in x]
+
+    fig, ax = plt.subplots()
+    fig.canvas.draw()
+    ax.tick_params(axis='x', rotation=90)
+    ax.xaxis.set_ticks(x)
+    ax.set_xticklabels(bagged_x_labels)
+
     plt.bar(x, y)
     plt.title(f'Sellers that changed their ranking after weighting the buyers\nbag size = {bag_size}')
     plt.xlabel('Change of ranks')
+    
     plt.ylabel('Number of sellers that changed rank')
+    plt.tight_layout()
     #plt.show()
     plt.savefig(f'../plots/{bag_size}bag_rank_change_of_sellers_after_weighting_buyers.png')
     plt.close()
