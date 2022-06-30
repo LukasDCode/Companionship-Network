@@ -141,7 +141,7 @@ def analyze_entire_network(network, verbose):
 
     # Here, finally the giant component gets analyzed
     #TODO change back verbose to variable and not hardcoded True
-    analyze_giant_component(giant_component, network, True) #verbose)
+    analyze_giant_component(giant_component, network, verbose)
 
 
 def analyze_size_3_comp(comp):
@@ -446,11 +446,22 @@ def general_edge_analysis(graph):
     print("out of which", seller_counter_mediocre_connected, "have more than 2 edges to buyers")
 
 
+def get_time_diameter(network):
+    min_time, max_time = 2999999999, 0 # min = 24.Jan.2065 some time
+    edges = network.edges.data()
+    for (u,v,data) in edges:
+        if data['time'] < min_time: min_time = data['time']
+        elif data['time'] > max_time: max_time = data['time']
+    print("Very first review happend on", datetime.fromtimestamp(min_time).strftime('%d %B %Y'))
+    print("Very last  review happend on", datetime.fromtimestamp(max_time).strftime('%d %B %Y'))
+
+
 def main(args):
     # bipartite multiweighted
     # edges: 50632 buyer_nodes: 10106 seller_nodes: 6624
     filename = "../network/ia-escorts-dynamic.edges"
     network = read_network(filename, verbose=args.verbose)
+    get_time_diameter(network)
     network = cleanse_network(network, verbose=args.verbose)
     analyze_entire_network(network, verbose=args.verbose)    
 
