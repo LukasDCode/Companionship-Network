@@ -461,7 +461,7 @@ def main(args):
     # edges: 50632 buyer_nodes: 10106 seller_nodes: 6624
     filename = "../network/ia-escorts-dynamic.edges"
     network = read_network(filename, verbose=args.verbose)
-    get_time_diameter(network)
+    if args.verbose: get_time_diameter(network)
     network = cleanse_network(network, verbose=args.verbose)
     analyze_entire_network(network, verbose=args.verbose)    
 
