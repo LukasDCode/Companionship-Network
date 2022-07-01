@@ -15,6 +15,6 @@ For more output, verbose mode can be switched on like so:
 
 
 ### Results
-We rank each seller according to the rankings they got. But in a further step we weight the reviews from the buyers, as some buyer give a lot of the same feedback as they always seem to have the same experience. This is not informative for the ranking, so we weight their input based on the reviews they give. After that we rank the sellers again, including the weighting of the buyers and analyze the rate of change between the two rankings. This change can be seen in the following plot.  
-![The rate of change between the unweighted and the weighted rankings.](/plots/rank_change_of_sellers_after_weighting_buyers.png)  
+We rank each seller according to the rankings they got. But in a further step we weight the reviews from the buyers, as some buyer give a lot of the same feedback as they always seem to have the same experience. This is not informative for the ranking, so we weight their input based on the reviews they give. After that we rank the sellers again, including the weighting of the buyers and analyze the rate of change between the two rankings. This change can be seen in the following plot, where changes are accumulated in bins of size 100.  
+![The rate of change between the unweighted and the weighted rankings binned into bins of size 100.](/plots/100bag_rank_change_of_sellers_after_weighting_buyers.png)  
   
