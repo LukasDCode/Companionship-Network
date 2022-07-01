@@ -140,7 +140,6 @@ def analyze_entire_network(network, verbose):
     print("Amount of edges within all components of size 5, 6, 7 or 8:", size_5_to_8_comp_num_of_edges)
 
     # Here, finally the giant component gets analyzed
-    #TODO change back verbose to variable and not hardcoded True
     analyze_giant_component(giant_component, network, verbose)
 
 
