@@ -253,10 +253,12 @@ def plot_bagged_change_counter_dict(change_counter_dict, bag_size=100):
     
     lists = sorted(bagged_dict.items()) # sorted by key, return a list of tuples
     x, y = zip(*lists) # unpack a list of pairs into two tuples
+    x = [x_i * bag_size for x_i in x]
     plt.bar(x, y)
     plt.title(f'Sellers that changed their ranking after weighting the buyers\nbag size = {bag_size}')
     plt.xlabel('Change of ranks')
     plt.ylabel('Number of sellers that changed rank')
+    
     #plt.show()
     plt.savefig(f'plots/{bag_size}bag_rank_change_of_sellers_after_weighting_buyers.png')
     plt.close()
