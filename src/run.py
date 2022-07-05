@@ -210,7 +210,8 @@ def analyze_giant_component(comp, network, verbose):
     weighted_buyer_ranking = get_weighted_buyer_ranking(ranking_review_buyer)
 
     if verbose:
-        print("Print weighted list:")
+        print("Print weighted buyer ranking:")
+        print("Total length of list:", len(weighted_buyer_ranking))
         print_top_and_bottom_of_list(weighted_buyer_ranking, k=7)
 
     weighted_buyer_ranking_dict = turn_weighted_ranking_to_dict(weighted_buyer_ranking)
@@ -222,9 +223,10 @@ def analyze_giant_component(comp, network, verbose):
     """
 
     weighted_seller_ranking_list = sort_avg_review_list(weighted_seller_list)
-    change_counter_dict = compare_weighted_with_unweighted(weighted_seller_ranking_list, ranking_review_seller)
-    #plot_change_counter_dict(change_counter_dict)
-    plot_bagged_change_counter_dict(change_counter_dict)
+    change_counter_dict_sellers = compare_weighted_with_unweighted_sellers(weighted_seller_ranking_list, ranking_review_seller)
+    
+    #change_counter_dict_sellers: {int_change: #_of_changed}
+    plot_bagged_change_counter_dict_sellers(change_counter_dict_sellers)
 
 
 def plot_change_counter_dict(change_counter_dict):
@@ -240,7 +242,7 @@ def plot_change_counter_dict(change_counter_dict):
     plt.close()   
 
 
-def plot_bagged_change_counter_dict(change_counter_dict, bag_size=100):
+def plot_bagged_change_counter_dict_sellers(change_counter_dict, bag_size=100):
     # Source: https://stackoverflow.com/a/37266356
     bagged_dict = dict()
     lists = sorted(change_counter_dict.items()) # sorted by key, return a list of tuples
@@ -272,7 +274,7 @@ def plot_bagged_change_counter_dict(change_counter_dict, bag_size=100):
     plt.close()
 
 
-def compare_weighted_with_unweighted(weighted_ranking, unweighted_ranking):
+def compare_weighted_with_unweighted_sellers(weighted_ranking, unweighted_ranking):
     # print only the first 5 and the last 5 entries
     print_range = 5
     if len(weighted_ranking) != len(unweighted_ranking):
@@ -292,10 +294,10 @@ def compare_weighted_with_unweighted(weighted_ranking, unweighted_ranking):
             (u_id, u_avg_review, u_num_reviews) = unweighted_ranking[index] # u for unweighted
             print(str(index+1)+".", w_id, "avg", w_avg_review, "#", w_num_reviews, "vs.", u_id, "avg", u_avg_review, "#", u_num_reviews)
         
-        return analyze_change_of_ranks(weighted_ranking, unweighted_ranking)
+        return analyze_change_of_ranks_seller(weighted_ranking, unweighted_ranking)
 
 
-def analyze_change_of_ranks(weighted_ranking, unweighted_ranking):
+def analyze_change_of_ranks_seller(weighted_ranking, unweighted_ranking):
     change_counter = Counter()
     for w_index, (w_id, _, _) in enumerate(weighted_ranking):
         for u_index, (u_id, _, _) in enumerate(unweighted_ranking):
@@ -359,14 +361,14 @@ def get_2_attribute_ranking_rankings(buyer_ranking, seller_ranking, verbose):
     if verbose:
         # print only the top 5 and bottom 5 of the rankings
         print_range = 5
-        print("Average buyer ranking:")
+        print("Average buyer ranking (length: ", len(ranking_review_buyer), "):")
         for id, avg_review, num_of_reviews in ranking_review_buyer[:print_range]:
             print("Buyer", id, "with avg review score of", avg_review, "and", num_of_reviews, "purchases")
         print("...")
         for id, avg_review, num_of_reviews in ranking_review_buyer[-print_range:]:
             print("Buyer", id, "with avg review score of", avg_review, "and", num_of_reviews, "purchases")
 
-        print("Average seller ranking:")
+        print("Average seller ranking (length: ", len(ranking_review_seller), "):")
         for id, avg_review, num_of_reviews in ranking_review_seller[:print_range]:
             print("Seller", id, "with avg review score of", avg_review, "and", num_of_reviews, "sells")
         print("...")
