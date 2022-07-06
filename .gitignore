@@ -1,4 +1,5 @@
 src/__pycache__/
 src/utils/__pycache__/
 plots/*
+plots/100bag_rank_change_of_sellers_after_weighting_buyers.png
 
