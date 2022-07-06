@@ -238,8 +238,32 @@ def plot_change_counter_dict(change_counter_dict):
     plt.xlabel('Change of ranks')
     plt.ylabel('Number of sellers that changed rank')
     #plt.show()
-    plt.savefig("../plots/rank_change_of_sellers_after_weighting_buyers.png")
-    plt.close()   
+    plt.savefig("plots/rank_change_of_sellers_after_weighting_buyers.png")
+    plt.close()
+    
+    
+def plot_bagged_change_counter_dict(change_counter_dict, bag_size=100):
+    # Source: https://stackoverflow.com/a/37266356
+    bagged_dict = dict()
+    lists = sorted(change_counter_dict.items()) # sorted by key, return a list of tuples
+    for x1, x2 in lists:
+        bag = ((x1 + 2000) // bag_size) - (2000 // bag_size)
+        if bag not in bagged_dict.keys():
+            bagged_dict[bag] = x2
+        else:
+            bagged_dict[bag] += x2
+    
+    lists = sorted(bagged_dict.items()) # sorted by key, return a list of tuples
+    x, y = zip(*lists) # unpack a list of pairs into two tuples
+    x = [x_i * bag_size for x_i in x]
+    plt.bar(x, y)
+    plt.title(f'Sellers that changed their ranking after weighting the buyers\nbag size = {bag_size}')
+    plt.xlabel('Change of ranks')
+    plt.ylabel('Number of sellers that changed rank')
+    
+    #plt.show()
+    plt.savefig(f'plots/{bag_size}bag_rank_change_of_sellers_after_weighting_buyers.png')
+    plt.close()
 
 
 def plot_bagged_change_counter_dict_sellers(change_counter_dict, bag_size=100):
@@ -270,7 +294,7 @@ def plot_bagged_change_counter_dict_sellers(change_counter_dict, bag_size=100):
     plt.ylabel('Number of sellers that changed rank')
     plt.tight_layout()
     #plt.show()
-    plt.savefig(f'../plots/{bag_size}bag_rank_change_of_sellers_after_weighting_buyers.png')
+    plt.savefig(f'plots/{bag_size}bag_rank_change_of_sellers_after_weighting_buyers.png')
     plt.close()
 
 
@@ -460,7 +484,7 @@ def get_time_diameter(network):
 def main(args):
     # bipartite multiweighted
     # edges: 50632 buyer_nodes: 10106 seller_nodes: 6624
-    filename = "../network/ia-escorts-dynamic.edges"
+    filename = "network/ia-escorts-dynamic.edges"
     network = read_network(filename, verbose=args.verbose)
     if args.verbose: get_time_diameter(network)
     network = cleanse_network(network, verbose=args.verbose)
