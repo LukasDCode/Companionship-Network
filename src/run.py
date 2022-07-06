@@ -238,9 +238,9 @@ def plot_change_counter_dict(change_counter_dict):
     plt.xlabel('Change of ranks')
     plt.ylabel('Number of sellers that changed rank')
     #plt.show()
-    plt.savefig("plots/rank_change_of_sellers_after_weighting_buyers.png")
+    plt.savefig("../plots/rank_change_of_sellers_after_weighting_buyers.png")
     plt.close()
-    
+    git 
     
 def plot_bagged_change_counter_dict(change_counter_dict, bag_size=100):
     # Source: https://stackoverflow.com/a/37266356
@@ -262,7 +262,7 @@ def plot_bagged_change_counter_dict(change_counter_dict, bag_size=100):
     plt.ylabel('Number of sellers that changed rank')
     
     #plt.show()
-    plt.savefig(f'plots/{bag_size}bag_rank_change_of_sellers_after_weighting_buyers.png')
+    plt.savefig(f'../plots/{bag_size}bag_rank_change_of_sellers_after_weighting_buyers.png')
     plt.close()
 
 
@@ -294,7 +294,7 @@ def plot_bagged_change_counter_dict_sellers(change_counter_dict, bag_size=100):
     plt.ylabel('Number of sellers that changed rank')
     plt.tight_layout()
     #plt.show()
-    plt.savefig(f'plots/{bag_size}bag_rank_change_of_sellers_after_weighting_buyers.png')
+    plt.savefig(f'../plots/{bag_size}bag_rank_change_of_sellers_after_weighting_buyers.png')
     plt.close()
 
 
@@ -484,7 +484,7 @@ def get_time_diameter(network):
 def main(args):
     # bipartite multiweighted
     # edges: 50632 buyer_nodes: 10106 seller_nodes: 6624
-    filename = "network/ia-escorts-dynamic.edges"
+    filename = "../network/ia-escorts-dynamic.edges"
     network = read_network(filename, verbose=args.verbose)
     if args.verbose: get_time_diameter(network)
     network = cleanse_network(network, verbose=args.verbose)
